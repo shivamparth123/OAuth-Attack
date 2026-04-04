@@ -1,0 +1,58 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  OAuth redirect_uri Misconfiguration — Attack Demo
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Service map
+#  ──────────────────────────────────────────────────────
+#  oauth-server    http://localhost:8083   VULNERABLE OAuth server
+#  client-app      http://localhost:8081   Legitimate MyApp (innocent)
+#  attacker-server http://localhost:8082   Fake clone + token collector
+#  mailhog         http://localhost:8025   Fake inbox (MailHog Web UI)
+#                  smtp port 1025          Used by attacker server internally
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  oauth-server:
+    build: ./oauth-server
+    container_name: oauth-server
+    ports:
+      - "8083:8083"
+    networks:
+      - demo-net
+
+  client-app:
+    build: ./client-app
+    container_name: client-app
+    ports:
+      - "8081:8081"
+    depends_on:
+      - oauth-server
+    networks:
+      - demo-net
+
+  attacker-server:
+    build: ./attacker-server
+    container_name: attacker-server
+    ports:
+      - "8082:8082"
+    depends_on:
+      - oauth-server
+      - mailhog
+    networks:
+      - demo-net
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "8025:8025"   # Web UI — open in browser as "victim inbox"
+      - "1025:1025"   # SMTP — attacker server sends email here
+    networks:
+      - demo-net
+
+networks:
+  demo-net:
+    driver: bridge
